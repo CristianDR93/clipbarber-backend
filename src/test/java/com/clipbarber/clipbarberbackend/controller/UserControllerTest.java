@@ -3,6 +3,7 @@ package com.clipbarber.clipbarberbackend.controller;
 import com.clipbarber.clipbarberbackend.dto.LoginRequest;
 import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UpdateUserRequest;
 import com.clipbarber.clipbarberbackend.dto.UserResponse;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.service.UserService;
@@ -125,5 +126,54 @@ class UserControllerTest {
         ResponseEntity<?> response = userController.getUserById(99L);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void updateUser_ShouldReturnUpdatedUser() {
+        UpdateUserRequest request = new UpdateUserRequest("Juan Actualizado", null, null, "+56999999999", null);
+        User updatedUser = new User();
+        updatedUser.setId(1L);
+        updatedUser.setName("Juan Actualizado");
+        updatedUser.setEmail("juan@example.com");
+        updatedUser.setPhone("+56999999999");
+        updatedUser.setRol(User.Rol.CLIENTE);
+        when(userService.updateUser(1L, request)).thenReturn(updatedUser);
+
+        ResponseEntity<?> response = userController.updateUser(1L, request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertInstanceOf(UserResponse.class, response.getBody());
+        assertEquals("Juan Actualizado", ((UserResponse) response.getBody()).getName());
+    }
+
+    @Test
+    void updateUser_ShouldReturnBadRequest_WhenUserNotFound() {
+        UpdateUserRequest request = new UpdateUserRequest("Test", null, null, null, null);
+        when(userService.updateUser(99L, request)).thenThrow(new RuntimeException("Error: Usuario no encontrado"));
+
+        ResponseEntity<?> response = userController.updateUser(99L, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Error: Usuario no encontrado", response.getBody());
+    }
+
+    @Test
+    void deleteUser_ShouldReturnNoContent() {
+        doNothing().when(userService).deleteUser(1L);
+
+        ResponseEntity<?> response = userController.deleteUser(1L);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(userService).deleteUser(1L);
+    }
+
+    @Test
+    void deleteUser_ShouldReturnBadRequest_WhenUserNotFound() {
+        doThrow(new RuntimeException("Error: Usuario no encontrado")).when(userService).deleteUser(99L);
+
+        ResponseEntity<?> response = userController.deleteUser(99L);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Error: Usuario no encontrado", response.getBody());
     }
 }

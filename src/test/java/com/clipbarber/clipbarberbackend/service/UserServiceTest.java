@@ -2,6 +2,7 @@ package com.clipbarber.clipbarberbackend.service;
 
 import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UpdateUserRequest;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.repository.UserRepository;
 import com.clipbarber.clipbarberbackend.security.JwtUtil;
@@ -168,5 +169,94 @@ class UserServiceTest {
 
         assertEquals("Error: Credenciales invalidas", exception.getMessage());
         verify(userRepository).findByEmail("juan@example.com");
+    }
+
+    @Test
+    void updateUser_ShouldUpdateUser_WhenExists() {
+        UpdateUserRequest request = new UpdateUserRequest("Juan Actualizado", null, null, "+56999999999", null);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateUser(1L, request);
+
+        assertNotNull(result);
+        assertEquals("Juan Actualizado", result.getName());
+        assertEquals("+56999999999", result.getPhone());
+        verify(userRepository).findById(1L);
+        verify(userRepository).save(any());
+    }
+
+    @Test
+    void updateUser_ShouldUpdateEmail_WhenEmailNotTaken() {
+        UpdateUserRequest request = new UpdateUserRequest(null, "nuevo@email.com", null, null, null);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("nuevo@email.com")).thenReturn(Optional.empty());
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateUser(1L, request);
+
+        assertEquals("nuevo@email.com", result.getEmail());
+        verify(userRepository).findByEmail("nuevo@email.com");
+    }
+
+    @Test
+    void updateUser_ShouldThrowException_WhenEmailAlreadyRegistered() {
+        User existingUser = new User();
+        existingUser.setId(2L);
+        existingUser.setEmail("otro@email.com");
+        UpdateUserRequest request = new UpdateUserRequest(null, "otro@email.com", null, null, null);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("otro@email.com")).thenReturn(Optional.of(existingUser));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> userService.updateUser(1L, request));
+
+        assertEquals("Error: Email ya esta registrado", exception.getMessage());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUser_ShouldThrowException_WhenUserNotFound() {
+        UpdateUserRequest request = new UpdateUserRequest("Test", null, null, null, null);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> userService.updateUser(99L, request));
+
+        assertEquals("Error: Usuario no encontrado", exception.getMessage());
+    }
+
+    @Test
+    void updateUser_ShouldEncodePassword_WhenPasswordProvided() {
+        UpdateUserRequest request = new UpdateUserRequest(null, null, "newPassword123", null, null);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("newPassword123")).thenReturn("encodedNewPassword");
+        when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.updateUser(1L, request);
+
+        assertEquals("encodedNewPassword", result.getPassword());
+        verify(passwordEncoder).encode("newPassword123");
+    }
+
+    @Test
+    void deleteUser_ShouldDeleteUser_WhenExists() {
+        when(userRepository.existsById(1L)).thenReturn(true);
+
+        userService.deleteUser(1L);
+
+        verify(userRepository).existsById(1L);
+        verify(userRepository).deleteById(1L);
+    }
+
+    @Test
+    void deleteUser_ShouldThrowException_WhenUserNotFound() {
+        when(userRepository.existsById(99L)).thenReturn(false);
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> userService.deleteUser(99L));
+
+        assertEquals("Error: Usuario no encontrado", exception.getMessage());
+        verify(userRepository, never()).deleteById(any());
     }
 }
