@@ -1,7 +1,9 @@
 package com.clipbarber.clipbarberbackend.controller;
 
 import com.clipbarber.clipbarberbackend.dto.LoginRequest;
+import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UserResponse;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.service.UserService;
 import jakarta.validation.Valid;
@@ -24,7 +26,7 @@ public class UserController {
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest request){
          try{
              User createdUser = userService.registerUser(request);
-             return ResponseEntity.ok(createdUser);
+             return ResponseEntity.ok(UserResponse.fromUser(createdUser));
          } catch (RuntimeException e){
              return ResponseEntity.badRequest().body(e.getMessage());
          }
@@ -33,23 +35,25 @@ public class UserController {
      @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request){
          try{
-             User user = userService.login(request.getEmail(), request.getPassword());
-             return ResponseEntity.ok(user);
+             LoginResponse loginResponse = userService.login(request.getEmail(), request.getPassword());
+             return ResponseEntity.ok(loginResponse);
          } catch (RuntimeException e){
              return ResponseEntity.badRequest().body(e.getMessage());
          }
      }
 
      @GetMapping
-    public ResponseEntity<List<User>> getAllUsers(){
-         List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserResponse>> getAllUsers(){
+         List<UserResponse> users = userService.getAllUsers().stream()
+                 .map(UserResponse::fromUser)
+                 .toList();
          return ResponseEntity.ok(users);
      }
 
      @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id){
          return userService.getUserById(id)
-                 .map(user -> ResponseEntity.ok(user))
+                 .map(user -> ResponseEntity.ok((Object) UserResponse.fromUser(user)))
                  .orElse(ResponseEntity.notFound().build());
      }
 

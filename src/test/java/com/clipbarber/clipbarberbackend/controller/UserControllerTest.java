@@ -1,7 +1,9 @@
 package com.clipbarber.clipbarberbackend.controller;
 
 import com.clipbarber.clipbarberbackend.dto.LoginRequest;
+import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UserResponse;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,8 +53,8 @@ class UserControllerTest {
         ResponseEntity<?> response = userController.registerUser(registerRequest);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertInstanceOf(User.class, response.getBody());
-        assertEquals("juan@example.com", ((User) response.getBody()).getEmail());
+        assertInstanceOf(UserResponse.class, response.getBody());
+        assertEquals("juan@example.com", ((UserResponse) response.getBody()).getEmail());
     }
 
     @Test
@@ -66,15 +68,19 @@ class UserControllerTest {
     }
 
     @Test
-    void login_ShouldReturnUser_WhenCredentialsAreValid() {
+    void login_ShouldReturnLoginResponse_WhenCredentialsAreValid() {
         LoginRequest request = new LoginRequest("juan@example.com", "123456");
-        when(userService.login("juan@example.com", "123456")).thenReturn(user);
+        LoginResponse loginResponse = new LoginResponse("jwt-token", 1L, "Juan Perez", "juan@example.com", "+56912345678", "CLIENTE");
+        when(userService.login("juan@example.com", "123456")).thenReturn(loginResponse);
 
         ResponseEntity<?> response = userController.login(request);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertInstanceOf(User.class, response.getBody());
-        assertEquals("juan@example.com", ((User) response.getBody()).getEmail());
+        assertInstanceOf(LoginResponse.class, response.getBody());
+        LoginResponse body = (LoginResponse) response.getBody();
+        assertEquals("jwt-token", body.getToken());
+        assertEquals("Bearer", body.getType());
+        assertEquals("juan@example.com", body.getEmail());
     }
 
     @Test
@@ -94,7 +100,7 @@ class UserControllerTest {
         List<User> users = List.of(user);
         when(userService.getAllUsers()).thenReturn(users);
 
-        ResponseEntity<List<User>> response = userController.getAllUsers();
+        ResponseEntity<List<UserResponse>> response = userController.getAllUsers();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
@@ -108,8 +114,8 @@ class UserControllerTest {
         ResponseEntity<?> response = userController.getUserById(1L);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertInstanceOf(User.class, response.getBody());
-        assertEquals("juan@example.com", ((User) response.getBody()).getEmail());
+        assertInstanceOf(UserResponse.class, response.getBody());
+        assertEquals("juan@example.com", ((UserResponse) response.getBody()).getEmail());
     }
 
     @Test
