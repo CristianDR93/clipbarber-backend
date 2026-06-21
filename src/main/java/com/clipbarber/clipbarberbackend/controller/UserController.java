@@ -3,6 +3,7 @@ package com.clipbarber.clipbarberbackend.controller;
 import com.clipbarber.clipbarberbackend.dto.LoginRequest;
 import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UpdateUserRequest;
 import com.clipbarber.clipbarberbackend.dto.UserResponse;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.service.UserService;
@@ -32,8 +33,8 @@ public class UserController {
          }
      }
 
-     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request){
+      @PostMapping("/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request){
          try{
              LoginResponse loginResponse = userService.login(request.getEmail(), request.getPassword());
              return ResponseEntity.ok(loginResponse);
@@ -50,11 +51,31 @@ public class UserController {
          return ResponseEntity.ok(users);
      }
 
-     @GetMapping("/{id}")
+      @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id){
-         return userService.getUserById(id)
-                 .map(user -> ResponseEntity.ok((Object) UserResponse.fromUser(user)))
-                 .orElse(ResponseEntity.notFound().build());
-     }
+          return userService.getUserById(id)
+                  .map(user -> ResponseEntity.ok((Object) UserResponse.fromUser(user)))
+                  .orElse(ResponseEntity.notFound().build());
+      }
+
+      @PutMapping("/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request){
+          try{
+              User updatedUser = userService.updateUser(id, request);
+              return ResponseEntity.ok(UserResponse.fromUser(updatedUser));
+          } catch (RuntimeException e){
+              return ResponseEntity.badRequest().body(e.getMessage());
+          }
+      }
+
+      @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id){
+          try{
+              userService.deleteUser(id);
+              return ResponseEntity.noContent().build();
+          } catch (RuntimeException e){
+              return ResponseEntity.badRequest().body(e.getMessage());
+          }
+      }
 
 }

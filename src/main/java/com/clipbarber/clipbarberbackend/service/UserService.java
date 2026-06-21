@@ -2,6 +2,7 @@ package com.clipbarber.clipbarberbackend.service;
 
 import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
+import com.clipbarber.clipbarberbackend.dto.UpdateUserRequest;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.repository.UserRepository;
 import com.clipbarber.clipbarberbackend.security.JwtUtil;
@@ -48,6 +49,44 @@ public class UserService {
 
     public Optional<User> getUserById(Long id){
         return userRepository.findById(id);
+    }
+
+    public User updateUser(Long id, UpdateUserRequest request){
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Error: Usuario no encontrado"));
+
+        if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())){
+            Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+            if (existingUser.isPresent()){
+                throw new RuntimeException("Error: Email ya esta registrado");
+            }
+            user.setEmail(request.getEmail());
+        }
+
+        if (request.getName() != null){
+            user.setName(request.getName());
+        }
+
+        if (request.getPassword() != null){
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+
+        if (request.getPhone() != null){
+            user.setPhone(request.getPhone());
+        }
+
+        if (request.getRol() != null){
+            user.setRol(request.getRol());
+        }
+
+        return userRepository.save(user);
+    }
+
+    public void deleteUser(Long id){
+        if (!userRepository.existsById(id)){
+            throw new RuntimeException("Error: Usuario no encontrado");
+        }
+        userRepository.deleteById(id);
     }
 
     public LoginResponse login(String email, String password){
