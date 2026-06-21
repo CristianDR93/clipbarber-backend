@@ -1,8 +1,10 @@
 package com.clipbarber.clipbarberbackend.service;
 
+import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.repository.UserRepository;
+import com.clipbarber.clipbarberbackend.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +27,12 @@ class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private BCryptPasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtUtil jwtUtil;
+
     @InjectMocks
     private UserService userService;
 
@@ -40,7 +48,7 @@ class UserServiceTest {
         user.setId(1L);
         user.setName("Juan Pérez");
         user.setEmail("juan@example.com");
-        user.setPassword(new BCryptPasswordEncoder().encode("123456"));
+        user.setPassword("hashedPassword");
         user.setPhone("+56912345678");
         user.setRol(User.Rol.CLIENTE);
 
@@ -50,6 +58,7 @@ class UserServiceTest {
     @Test
     void registerUser_ShouldSaveUser_WhenEmailNotRegistered() {
         when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("123456")).thenReturn("hashedPassword");
         when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = userService.registerUser(registerRequest);
@@ -57,8 +66,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals("juan@example.com", result.getEmail());
         assertEquals("Juan Pérez", result.getName());
-        assertNotEquals("123456", result.getPassword());
-        assertTrue(result.getPassword().startsWith("$2a$"));
+        assertEquals("hashedPassword", result.getPassword());
         assertEquals(User.Rol.CLIENTE, result.getRol());
         verify(userRepository).findByEmail("juan@example.com");
         verify(userRepository).save(any());
@@ -68,6 +76,7 @@ class UserServiceTest {
     void registerUser_ShouldAssignDefaultRol_WhenRolIsNull() {
         RegisterRequest requestWithoutRol = new RegisterRequest("Juan", "juan2@example.com", "123456", "+56912345678", null);
         when(userRepository.findByEmail("juan2@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("123456")).thenReturn("hashedPassword");
         when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = userService.registerUser(requestWithoutRol);
@@ -119,14 +128,23 @@ class UserServiceTest {
     }
 
     @Test
-    void login_ShouldReturnUser_WhenCredentialsAreValid() {
+    void login_ShouldReturnLoginResponse_WhenCredentialsAreValid() {
         when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("123456", "hashedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken(1L, "juan@example.com", "CLIENTE")).thenReturn("mock-jwt-token");
 
-        User result = userService.login("juan@example.com", "123456");
+        LoginResponse result = userService.login("juan@example.com", "123456");
 
         assertNotNull(result);
+        assertEquals("mock-jwt-token", result.getToken());
+        assertEquals("Bearer", result.getType());
+        assertEquals(1L, result.getUserId());
+        assertEquals("Juan Pérez", result.getName());
         assertEquals("juan@example.com", result.getEmail());
+        assertEquals("CLIENTE", result.getRol());
         verify(userRepository).findByEmail("juan@example.com");
+        verify(passwordEncoder).matches("123456", "hashedPassword");
+        verify(jwtUtil).generateToken(1L, "juan@example.com", "CLIENTE");
     }
 
     @Test
@@ -143,6 +161,7 @@ class UserServiceTest {
     @Test
     void login_ShouldThrowException_WhenPasswordIsWrong() {
         when(userRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongpassword", "hashedPassword")).thenReturn(false);
 
         RuntimeException exception = assertThrows(RuntimeException.class,
                 () -> userService.login("juan@example.com", "wrongpassword"));

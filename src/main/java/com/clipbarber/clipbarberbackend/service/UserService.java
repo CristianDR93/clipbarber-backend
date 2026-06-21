@@ -1,8 +1,10 @@
 package com.clipbarber.clipbarberbackend.service;
 
+import com.clipbarber.clipbarberbackend.dto.LoginResponse;
 import com.clipbarber.clipbarberbackend.dto.RegisterRequest;
 import com.clipbarber.clipbarberbackend.model.User;
 import com.clipbarber.clipbarberbackend.repository.UserRepository;
+import com.clipbarber.clipbarberbackend.security.JwtUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -14,10 +16,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
-    public UserService(UserRepository userRepository){
+    public UserService(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JwtUtil jwtUtil){
         this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder;
+        this.jwtUtil = jwtUtil;
     }
 
     public User registerUser(RegisterRequest request){
@@ -46,7 +50,7 @@ public class UserService {
         return userRepository.findById(id);
     }
 
-    public User login(String email, String password){
+    public LoginResponse login(String email, String password){
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Error: Credenciales invalidas"));
@@ -55,6 +59,15 @@ public class UserService {
             throw new RuntimeException("Error: Credenciales invalidas");
         }
 
-        return user;
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail(), user.getRol().name());
+
+        return new LoginResponse(
+                token,
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRol().name()
+        );
     }
 }
